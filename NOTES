@@ -1,0 +1,86 @@
+Bomberman 64 (U):
+
+80225A74 main game loop (the branch, specifically)
+802259F4 main game loop (first jal)
+800655F8 copyright screen wait timer (and seemingly has other uses)
+    $12C gets written by 80238DDC (generic?)
+    start of function: 80238D98
+    wrapper function: 8023900C
+    calls where A0 (frame time) > 1:
+        RA: 800434B4 (A0=$14)
+        RA: 8004356C (A0=$12C)
+    A0=$12C is set at 80043568, so change that to 1 and...
+
+decomp routine struct: 8014B808
+LW ($4) might be ROM offset?
+LW ($8) is current offset into compressed file?
+rom$162008 start of compressed file?
+rom$160000 points to that start (confirmed, it adds 0x00160000 from A2 at 80226758)
+rom$163B62 start of second file (again, starts with decomp length)
+    breakpoint at 80292C90 to only see raw bytes being written (in V0)
+    for compression format details, refer to:
+    https://github.com/PartyPlanner64/PartyPlanner64/wiki/Compression#compression-type-1
+ring-buffer?: 80305000
+
+seems like the rom is split into 0x20000 chunks (128 KiB, 1 megabit)
+first chunk is at 0x120000?
+err wait, that doesn't work for 0x200000; it's 0x40000 long!
+
+anyway back at the rom:$160000
+let's tear apart this header.
+it's entirely s32s, so that's simple enough.
+first word: $00002008
+this is the offset from this position into the first (compressed) file.
+next: $00000400
+not sure what this is. number of entries in this header? always seems to be 0x400.
+next: $00000000
+offset to first file. added to the initial 0x2008.
+next: $00000016
+size of first file.
+next: $00000016
+offset of second file. added to the initial 0x2008.
+next: $00001B44
+this is the compressed size of the second file.
+next: the rest of the entries follow this pattern of (offset, size).
+(except $FFFFFFFF means no file)
+
+now what's the data at rom$162008?
+first byte: $09
+i think this is the number of entries in this sub-header,
+except it's not. maybe it indicates the type of something?
+
+rom$162008:
+09
+00 20 01
+00 21 02
+00 23 03
+00 25 04
+00 26 05
+00 1F 06
+00 22 07
+00 00 2F 80
+
+rom$182008:
+0A
+00 28 01
+00 29 02
+00 2A 03
+00 2B 04
+00 2C 05
+00 2D 06
+00 2E 07
+00 2F 08
+00 30 09
+00 31 0A
+00 (halfword padding?)
+00 00 79 80
+
+rom$1A2008:
+07
+00 38 01
+00 39 02
+00 3A 03
+00 3B 04
+00 3C 05
+00 3D 06
+00 3E 07
