@@ -40,7 +40,7 @@ def hexdump(data):
         print(("{:06X} |" + " {:02X}" * len(butts)).format(i * 16, *butts))
 
 def compress(data, mode="greedy"):
-    assert mode == "greedy", f"unknown mode: {mode}"
+    assert mode in "worst greedy best".split(), f"unknown mode: {mode}"
 
     comp = bytearray()
     comp.extend(W4(len(data)))
@@ -54,9 +54,9 @@ def compress(data, mode="greedy"):
     max_len = 0x3F + 3
 
     def find_match(sub):
-        if len(sub) < min_len:
+        if mode == "worst" or len(sub) < min_len:
             return None, None
-        match_i, match_len = None, None
+        best_i, best_len = None, None
 
         for i in range(buf_len):
             match_i, match_len = (buf_i - i) % buf_len, 0
@@ -71,12 +71,16 @@ def compress(data, mode="greedy"):
                     break
             if match_len < min_len:
                 match_i, match_len = None, None
-            else:
+                continue
+            if best_len is None or match_len > best_len:
+                best_i = match_i
+                best_len = match_len
+            if mode == "greedy":
                 break
 
-        if match_len is not None:
-            assert min_len <= match_len <= max_len
-        return match_i, match_len
+        if best_len is not None:
+            assert min_len <= best_len <= max_len
+        return best_i, best_len
 
     shift = 0
     shifted = 0
@@ -260,7 +264,7 @@ def create_rom(d):
                 if fi == 0 and di != 14 or di == 14 and fi in skip_14:
                     new_data = data
                 else:
-                    new_data = compress(data)
+                    new_data = compress(data, "best" if di == 14 else "greedy")
                     fmt = "compressed {:02}-{:03}.bin from {} bytes into {} ({:.2%})"
                     percent = len(new_data) / len(data) if len(data) > 0 else 1
                     print(fmt.format(di, fi, len(data), len(new_data), percent))
