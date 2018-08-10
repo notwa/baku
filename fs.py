@@ -39,6 +39,12 @@ def hexdump(data):
         butts = data[i * 16:i * 16 + 16]
         print(("{:06X} |" + " {:02X}" * len(butts)).format(i * 16, *butts))
 
+def pad_align_data(data):
+    if len(data) % 16 != 0:
+        return data + bytearray(16 - len(data) % 16)
+    else:
+        return data
+
 def compress_fast(data, mode="best"):
     assert mode == "best", "only \"best\" mode is implemented for compress_fast"
     from poopen import poopen
@@ -290,6 +296,7 @@ def create_rom(d):
                     fmt = "compressed {:02}-{:03}.bin from {} bytes into {} ({:.2%})"
                     percent = len(new_data) / len(data) if len(data) > 0 else 1
                     print(fmt.format(di, fi, len(data), len(new_data), percent))
+                new_data = pad_align_data(new_data)
                 size = len(new_data)
                 f.write(W4(size))
                 offset += size
