@@ -39,6 +39,28 @@ def hexdump(data):
         butts = data[i * 16:i * 16 + 16]
         print(("{:06X} |" + " {:02X}" * len(butts)).format(i * 16, *butts))
 
+def compress_fast(data, mode="best"):
+    assert mode == "best", "only \"best\" mode is implemented for compress_fast"
+    from poopen import poopen
+    from platform import machine
+
+    exe = "compressor"
+    exe += "64" if machine().endswith("64") else "32"
+    exe += (".exe" if os.name == "nt" else "")
+    exe = os.path.join(heresay, exe)
+    assert os.path.isfile(exe), "missing executable: " + exe
+
+    tmp_fn = "compressing.tmp"
+
+    with open(tmp_fn, "wb") as f:
+        f.write(data)
+
+    poopen([exe, tmp_fn])
+
+    with open(tmp_fn, "rb") as f:
+        new_data = f.read()
+    return new_data
+
 def compress(data, mode="greedy"):
     assert mode in "worst greedy best".split(), f"unknown mode: {mode}"
 
@@ -70,7 +92,6 @@ def compress(data, mode="greedy"):
                 if match_len == len(sub):
                     break
             if match_len < min_len:
-                match_i, match_len = None, None
                 continue
             if best_len is None or match_len > best_len:
                 best_i = match_i
@@ -264,7 +285,8 @@ def create_rom(d):
                 if fi == 0 and di != 14 or di == 14 and fi in skip_14:
                     new_data = data
                 else:
-                    new_data = compress(data, "best" if di == 14 else "greedy")
+                    #new_data = compress(data, "best" if di == 14 else "greedy")
+                    new_data = compress_fast(data)
                     fmt = "compressed {:02}-{:03}.bin from {} bytes into {} ({:.2%})"
                     percent = len(new_data) / len(data) if len(data) > 0 else 1
                     print(fmt.format(di, fi, len(data), len(new_data), percent))
@@ -273,7 +295,8 @@ def create_rom(d):
                 offset += size
                 files[fi] = new_data
 
-                #if fi != 0: break  # DEBUG
+                if DEBUG and fi != 0:
+                    break
 
             while f.tell() & 0xFFFF < 0x2008:
                 f.write(W4(0xFFFFFFFF))
@@ -285,7 +308,8 @@ def create_rom(d):
 
             assert f.tell() - block_offset < block_size
 
-            #break  # DEBUG
+            if DEBUG:
+                break
 
 def dump_files(f):
     # TODO:
