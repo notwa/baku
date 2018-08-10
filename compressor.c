@@ -15,6 +15,10 @@ typedef unsigned int u32;
 #define MAX_LEN 66
 #define BUF_START 0x3BE
 
+#ifndef RW_OVERLAP
+#define RW_OVERLAP 1
+#endif
+
 char *program_name;
 
 long compress(const u8 *bufi, long size, u8 *bufo) {
@@ -37,12 +41,22 @@ long compress(const u8 *bufi, long size, u8 *bufo) {
             for (int j = 0; j < BUF_LEN; j++) {
                 int match_i = PMOD(buf_i - j, BUF_LEN);
                 int match_len = 0;
+#if RW_OVERLAP
+                int overlap = 0;
+#endif
                 for (;;) {
                     int buf_off = (match_i + match_len) % BUF_LEN;
-                    u8 b = buf[buf_off];
-                    if (b != sub[match_len]) { break; }
-                    // TODO: handle pseudo-writes to buffer.
-                    if (buf_off == buf_i) { break; }
+#if RW_OVERLAP
+                    if (overlap > 0 || (buf_off == buf_i && j != 0)) {
+                        if (sub[overlap % j] != sub[match_len]) { break; }
+                        overlap++;
+                    } else {
+                        if (buf[buf_off] != sub[match_len]) { break; }
+                    }
+#else
+                    if (buf_off == buf_i && j != 0) { break; }
+                    if (buf[buf_off] != sub[match_len]) { break; }
+#endif
                     match_len++;
                     if (match_len == MAX_LEN) { break; }
                     if (match_len == sub_len) { break; }
