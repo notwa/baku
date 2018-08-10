@@ -39,9 +39,8 @@ def hexdump(data):
         butts = data[i * 16:i * 16 + 16]
         print(("{:06X} |" + " {:02X}" * len(butts)).format(i * 16, *butts))
 
-def compress(data, mode='greedy'):
-    # TODO: 'best' and 'worst' modes.
-    assert mode == 'greedy', f"unknown mode: {mode}"
+def compress(data, mode="greedy"):
+    assert mode == "greedy", f"unknown mode: {mode}"
 
     comp = bytearray()
     comp.extend(W4(len(data)))
@@ -96,7 +95,6 @@ def compress(data, mode='greedy'):
         assert shifted < 8
         shift >>= 1
         shift |= x << 7
-        #assert 0 <= shift <= 0xFF
         shifted += 1
 
     i = 0
@@ -193,7 +191,7 @@ def decompress(data, expected_size):
 
     if DEBUG:
         hexdump(data)
-        print('-' * (6 + 2 + 3 * 16))
+        print("-" * (6 + 2 + 3 * 16))
         hexdump(decomp)
 
     if len(decomp) > expected_size:
@@ -209,7 +207,7 @@ def create_rom(d):
     for block_meta in blocks:
         dirs.append([])
 
-    rom_size = 8*1024*1024
+    rom_size = 8 * 1024 * 1024
     base_offset = 0x2008
     # TODO: don't hardcode?:
     skip_14 = [
@@ -220,7 +218,7 @@ def create_rom(d):
         267,  # ?
     ]
 
-    with open(d+'.z64', 'w+b') as f:
+    with open(d + ".z64", "w+b") as f:
         # initialize with zeros
         f.write(bytearray(rom_size))
         f.seek(0)
@@ -228,22 +226,22 @@ def create_rom(d):
         old_di = -1
         old_fi = -1
         for i, fn in enumerate(files):
-            if fn == 'misc.bin':
-                with open(os.path.join(d, fn), 'rb') as f2:
+            if fn == "misc.bin":
+                with open(os.path.join(d, fn), "rb") as f2:
                     data = f2.read()
 
                 f.seek(0)
                 f.write(data)
-            elif '-' in fn:
-                extless = fn.split('.')[0]
-                di, fi = extless.split('-')
+            elif "-" in fn:
+                extless = fn.split(".")[0]
+                di, fi = extless.split("-")
                 di, fi = int(di), int(fi)
                 if di != old_di:
                     old_fi = -1
                     old_di = di
                 if fi != old_fi + 1:
                     raise Exception("file indices must be consecutive")
-                with open(os.path.join(d, fn), 'rb') as f2:
+                with open(os.path.join(d, fn), "rb") as f2:
                     data = f2.read()
                 dirs[di].append(data)
                 old_fi = fi
@@ -317,7 +315,7 @@ def dump_files(f):
 
             hint = R1(f.read(1))  # TODO: what is this really?
             if hint == 0:
-                uncompressed_size = R4(b'\0' + f.read(3))
+                uncompressed_size = R4(b"\0" + f.read(3))
                 data = decompress(f.read(size - 4), uncompressed_size)
             else:
                 print("hinted:", fn)
@@ -328,21 +326,21 @@ def dump_files(f):
             file_index += 1
 
 def dump_rom(fp):
-    with open(fp, 'rb') as f:
+    with open(fp, "rb") as f:
         data = f.read()
 
     with BytesIO(data) as f:
         start = f.read(4)
-        if start == b'\x37\x80\x40\x12':
+        if start == b"\x37\x80\x40\x12":
             swap_order(f)
-        elif start != b'\x80\x37\x12\x40':
-            lament('not a .z64:', fp)
+        elif start != b"\x80\x37\x12\x40":
+            lament("not a .z64:", fp)
             return
 
         f.seek(0)
         romhash = sha1(f.read()).hexdigest()
 
-        if romhash != '8a7648d8105ac4fc1ad942291b2ef89aeca921c9':
+        if romhash != "8a7648d8105ac4fc1ad942291b2ef89aeca921c9":
             raise Exception("unknown/unsupported ROM")
 
         with SubDir(romhash):
@@ -354,7 +352,7 @@ def run(args):
         description="fs: construct and deconstruct Bomberman 64 ROMs")
 
     parser.add_argument(
-        'path', metavar='ROM or folder', nargs='+',
+        "path", metavar="ROM or folder", nargs="+",
         help="ROM to deconstruct, or folder to construct")
 
     a = parser.parse_args(args)
@@ -366,9 +364,9 @@ def run(args):
         elif os.path.isfile(path):
             dump_rom(path)
         else:
-            lament('no-op:', path)
+            lament("no-op:", path)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         ret = run(sys.argv[1:])
         sys.exit(ret)
