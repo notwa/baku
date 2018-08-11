@@ -14,6 +14,12 @@ DEBUG = False
 lament = lambda *args, **kwargs: print(*args, file=sys.stderr, **kwargs)
 heresay = os.path.split(sys.argv[0])[0]
 
+known_versions = {
+    "01e50f41733994bf229bee3b3d8aa9fd46441175": "(E)",
+    "4813b147d552f72fdb0b306469bf9aa0f820fd5b": "(J)",
+    "8a7648d8105ac4fc1ad942291b2ef89aeca921c9": "(U)",
+}
+
 # TODO: don't hardcode this? look into how the game handles it.
 blocks = (
     (0x120000, 0x20000),
@@ -370,12 +376,13 @@ def dump_rom(fp):
             return
 
         f.seek(0)
-        romhash = sha1(f.read()).hexdigest()
+        hash = sha1(f.read()).hexdigest()
 
-        if romhash != "8a7648d8105ac4fc1ad942291b2ef89aeca921c9":
+        version = known_versions.get(hash, None)
+        if version is None:
             raise Exception("unknown/unsupported ROM")
 
-        with SubDir(romhash):
+        with SubDir(version):
             f.seek(0)
             dump_files(f)
 
