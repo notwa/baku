@@ -40,8 +40,8 @@ def hexdump(data):
         print(("{:06X} |" + " {:02X}" * len(butts)).format(i * 16, *butts))
 
 def pad_align_data(data):
-    if len(data) % 16 != 0:
-        return data + bytearray(16 - len(data) % 16)
+    if len(data) % 8 != 0:
+        return data + bytearray(8 - len(data) % 8)
     else:
         return data
 
@@ -240,14 +240,7 @@ def create_rom(d):
 
     rom_size = 8 * 1024 * 1024
     base_offset = 0x2008
-    # TODO: don't hardcode?:
-    skip_14 = [
-        32,  # sound or music bank?
-        33,  # sound or music bank?
-        220,  # ?
-        221,  # ?
-        267,  # ?
-    ]
+    nocomps = []
 
     with open(d + ".z64", "w+b") as f:
         # initialize with zeros
@@ -263,10 +256,12 @@ def create_rom(d):
 
                 f.seek(0)
                 f.write(data)
-            elif "-" in fn:
+            elif fn.endswith(".bin") and "-" in fn:
                 extless = fn.split(".")[0]
-                di, fi = extless.split("-")
+                di, fi = extless.split("-")[:2]
                 di, fi = int(di), int(fi)
+                if extless.endswith("-nocomp"):
+                    nocomps.append((di, fi))
                 if di != old_di:
                     old_fi = -1
                     old_di = di
@@ -288,7 +283,7 @@ def create_rom(d):
             offset = 0
             for fi, data in enumerate(files):
                 f.write(W4(offset))
-                if fi == 0 and di != 14 or di == 14 and fi in skip_14:
+                if fi == 0 and di != 14 or (di, fi) in nocomps:
                     new_data = data
                 else:
                     #new_data = compress(data, "best" if di == 14 else "greedy")
@@ -341,20 +336,23 @@ def dump_files(f):
             header_resume = f.tell()
 
             seek_to = offset + base_offset + block_offset
-            #print(f"offset: {offset:08X}")
-            #print(f"base_offset: {base_offset:08X}")
-            #print(f"block_offset: {block_offset:08X}")
-            fn = f"{dir_index:02}-{file_index:03}.bin"
-            print(f"extracting file at {seek_to:06X} to {fn}")
             f.seek(seek_to)
 
-            hint = R1(f.read(1))  # TODO: what is this really?
-            if hint == 0:
-                uncompressed_size = R4(b"\0" + f.read(3))
+            temp = f.read(4)
+            hint = temp[0]  # TODO: what is this really?
+            uncompressed_size = R4(temp)
+
+            is_compressed = hint == 0 and uncompressed_size != 0
+
+            fn = f"{dir_index:02}-{file_index:03}.bin"
+            if not is_compressed:
+                fn = fn.replace(".bin", "-nocomp.bin")
+            print(f"extracting file at {seek_to:06X} to {fn}")
+
+            if is_compressed:
                 data = decompress(f.read(size - 4), uncompressed_size)
             else:
-                print("hinted:", fn)
-                data = bytes([hint]) + f.read(size - 1)
+                data = temp + f.read(size - 4)
             dump_as(data, fn)
 
             f.seek(header_resume)
