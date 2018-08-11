@@ -1,7 +1,9 @@
 * - Copy*
 *.7z
 *.State
+*.bak
 *.bin
 *.exe
+*.tmp
 *.z64
 __pycache__/*
