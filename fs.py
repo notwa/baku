@@ -51,7 +51,6 @@ def compress_fast(data, mode="best"):
     from platform import machine
 
     exe = "compressor"
-    exe += "64" if machine().endswith("64") else "32"
     exe += (".exe" if os.name == "nt" else "")
     exe = os.path.join(heresay, exe)
     assert os.path.isfile(exe), "missing executable: " + exe
